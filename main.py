@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torch.utils.data as data
-from torch.autograd import Variable
+# from torch.autograd import Variable
 from torch.utils.data.sampler import RandomSampler
 import cv2
 
@@ -31,7 +31,10 @@ class ImageDataset(data.Dataset):
         img = np.stack([img1, img2], axis=2)
 
         # получение углов и название изображения
-        angle = self.X_data.iloc[index]['inc_angle']
+        if self.include_target == True:
+            angle = self.X_data.iloc[index]['inc_angle']
+        else:
+            angle = None
         img_id = self.X_data.iloc[index]['id']
 
         # аргументация функции X_transform
@@ -62,40 +65,49 @@ class ImageDataset(data.Dataset):
 def random_vertical_flip(img, u=0.5):
     if np.random.random() < u:
         img = cv2.flip(img, 0)
-
     return img
 
-
-train = pd.read_json('data/processed/train.json')
+train = pd.read_json(TRAIN_PATH)
 train['inc_angle'] = pd.to_numeric(train['inc_angle'], errors='coerce')
 train['band_1'] = train['band_1'].apply(lambda x: np.array(x).reshape(75, 75))
 train['band_2'] = train['band_2'].apply(lambda x: np.array(x).reshape(75, 75))
 
-batch_size = 10
+batch_size = 10 #64
 train_ds = ImageDataset(train, include_target=True, u=0.5, X_transform=random_vertical_flip)
-USE_CUDA = False  # для ядра
-THREADS = 4  # для ядра
+USE_CUDA = False
+THREADS = 4
 train_loader = data.DataLoader(train_ds, batch_size,
                                sampler=RandomSampler(train_ds),
                                num_workers=THREADS,
                                pin_memory=USE_CUDA)
 
-for i, dict_ in enumerate(train_loader):
-    images = dict_['img']
-    target = dict_['target'].type(torch.FloatTensor)
 
-    if USE_CUDA:
-        images = images.cuda()
-        target = target.cuda()
+test = pd.read_json(TEST_PATH)
+test['band_1'] = test['band_1'].apply(lambda x: np.array(x).reshape(75, 75))
+test['band_2'] = test['band_2'].apply(lambda x: np.array(x).reshape(75, 75))
+test_ds = ImageDataset(train, include_target=False, u=0.5, X_transform=random_vertical_flip)
+test_loader = data.DataLoader(test_ds, batch_size,
+                               sampler=RandomSampler(test_ds),
+                               num_workers=THREADS,
+                               pin_memory=USE_CUDA)
 
-    images = Variable(images)
-    target = Variable(target)
 
-    # tобучение
-    # prediction = Net().forward(images)
-    # ....
-
-    # для ядра
-    print(target)
-    if i == 0:
-        break
+# for i, dict_ in enumerate(train_loader):
+#     images = dict_['img'] #изображения
+#     target = dict_['target'].type(torch.FloatTensor) #это корабль или айсберг
+#
+#     if USE_CUDA:
+#         images = images.cuda()
+#         target = target.cuda()
+#
+#     images = Variable(images)
+#     target = Variable(target)
+#
+#     # tобучение
+#     # prediction = Net().forward(images)
+#     # ....
+#
+#     # для ядра
+#     print(target)
+#     if i == 0:
+#         break
