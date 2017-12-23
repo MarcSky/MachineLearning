@@ -73,14 +73,13 @@ train['band_2'] = train['band_2'].apply(lambda x: np.array(x).reshape(75, 75))
 
 batch_size = 10
 train_ds = ImageDataset(train, include_target=True, u=0.5, X_transform=random_vertical_flip)
-USE_CUDA = False  # for kernel
-THREADS = 4  # for kernel
+USE_CUDA = False  # для ядра
+THREADS = 4  # для ядра
 train_loader = data.DataLoader(train_ds, batch_size,
                                sampler=RandomSampler(train_ds),
                                num_workers=THREADS,
                                pin_memory=USE_CUDA)
 
-# prseudo code for train
 for i, dict_ in enumerate(train_loader):
     images = dict_['img']
     target = dict_['target'].type(torch.FloatTensor)
@@ -92,10 +91,11 @@ for i, dict_ in enumerate(train_loader):
     images = Variable(images)
     target = Variable(target)
 
-    # train net
+    # tобучение
     # prediction = Net().forward(images)
     # ....
 
-    # for kernel:
+    # для ядра
     print(target)
-    if i == 0: break
+    if i == 0:
+        break
