@@ -1,53 +1,28 @@
 import torch
-import torch.nn as nn
-import torchvision.datasets as dsets
-import torchvision.transforms as transforms
-from torch.autograd import Variable
+from imagedataset import ImageDataset
+import numpy as np
+import pandas as pd
+from torch.utils.data import DataLoader
+from torch.utils.data.sampler import RandomSampler
 
 from cnn import CNN
-from main import train_loader, batch_size
+# from main import train_loader, batch_size
+use_gpu = torch.cuda.is_available()
+TRAIN_PATH = 'DL/data/processed/train.json'
 
-# # Hyper Parameters
-# num_epochs = 1
-# batch_size = 100
-# learning_rate = 0.001
-#
-# cnn = CNN()
-#
-# # Loss and Optimizer
-# criterion = nn.CrossEntropyLoss()
-#
-# optimizer = torch.optim.SGD(cnn.parameters(), lr=learning_rate) #ADAM OPTIMIZER
-#
-# # Train the Model
-# for epoch in range(num_epochs):
-#     for i, (images, labels) in enumerate(train_loader):
-#         images = Variable(images)
-#         labels = Variable(labels)
-#
-#         # Forward + Backward + Optimize
-#         optimizer.zero_grad()
-#         outputs = cnn(images)
-#         loss = criterion(outputs, labels)
-#         loss.backward()
-#         optimizer.step()
-#
-#         if (i + 1) % 100 == 0:
-#             print('Epoch [%d/%d], Iter [%d] Loss: %.4f'
-#                   % (epoch + 1, num_epochs, i + 1, loss.data[0]))
-#
-# # Test the Model
-# cnn.eval()  # Change model to 'eval' mode (BN uses moving mean/var).
-# correct = 0
-# total = 0
-# for images, labels in test_loader:
-#     images = Variable(images)
-#     outputs = cnn(images)
-#     _, predicted = torch.max(outputs.data, 1)
-#     total += labels.size(0)
-#     correct += (predicted == labels).sum()
-#
-# print('Test Accuracy of the model on the 10000 test images: %d %%' % (100 * correct / total))
+train = pd.read_json(TRAIN_PATH)
+train['inc_angle'] = pd.to_numeric(train['inc_angle'], errors='coerce')
+train['band_1'] = train['band_1'].apply(lambda x: np.array(x).reshape(75, 75))
+train['band_2'] = train['band_2'].apply(lambda x: np.array(x).reshape(75, 75))
+
+batch_size = 10 #64
+train_ds = ImageDataset(train[:10], include_target=True, u=0.5)
+THREADS = 4
+train_loader = DataLoader(train_ds, batch_size,
+                               sampler=RandomSampler(train_ds),
+                               num_workers=THREADS,
+                               pin_memory=use_gpu)
+
 
 img_size = (75,75)
 img_ch = 2
@@ -57,7 +32,7 @@ padding=2
 n_out = 1
 n_epoch = 35
 
+
 if __name__ == '__main__':
-    cnn = CNN(img_size=img_size, img_ch=img_ch, kernel_size=kernel_size,
-                        pool_size=pool_size, n_out=n_out, padding=padding)
-    cnn.fit(train_loader, n_epoch, batch_size)
+    cnn = CNN(img_size=img_size, img_ch=img_ch, kernel_size=kernel_size, pool_size=pool_size, n_out=n_out, padding=padding)
+    cnn.fit(train_loader, n_epoch, batch_size, int(len(train_ds)))
